@@ -225,7 +225,9 @@ html.${ROOT_CLASS} ${PANEL_SELECTOR} .${COMPACT_CLASS} > .prompt-editor__expand-
   resizeObserver = typeof win.ResizeObserver === 'function'
     ? new win.ResizeObserver(schedule)
     : null;
-  mutationObserver = new win.MutationObserver(schedule);
+  mutationObserver = new win.MutationObserver(records => {
+    if (pmmMutationsAffect(records, PANEL_SELECTOR, true)) schedule();
+  });
   pmmRuntimeResource(mutationObserver).observe(DOC.documentElement, { childList: true, subtree: true, characterData: true });
   pmmRuntimeResource(TOP).addEventListener?.('resize', onResize);
   pmmRuntimeResource(TOP).addEventListener?.('orientationchange', onResize);

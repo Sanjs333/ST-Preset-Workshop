@@ -6,7 +6,7 @@ const { chromium } = await import(process.env.PMM_PLAYWRIGHT_MODULE ? pathToFile
 const names=['snapshot-backup.js','snapshot-backup-core.js','snapshot-preset-links.js','snapshot-name-dialog.js'];
 const files=Object.fromEntries(await Promise.all(names.map(async name=>[name,await readFile(new URL('../dist/'+name,import.meta.url),'utf8')])));
 const bundle=await readFile(new URL('../dist/workshop-v3.02.js',import.meta.url),'utf8');
-files['preset.js']=`import { requestSnapshotName } from './snapshot-name-dialog.js';\nimport { installPresetSnapshotLinks } from './snapshot-preset-links.js';\n`+bundle.slice(bundle.indexOf('/* ===== PMM_SWITCH_SNAPSHOTS_TEST52'),bundle.indexOf('/* ===== PMM_THEMED_COMPARE_DRAG_LINE_V289'));
+files['preset.js']=bundle.slice(0,bundle.indexOf('let pmmEditingContext'))+`import { requestSnapshotName } from './snapshot-name-dialog.js';\nimport { installPresetSnapshotLinks } from './snapshot-preset-links.js';\n`+bundle.slice(bundle.indexOf('/* ===== PMM_SWITCH_SNAPSHOTS_TEST52'),bundle.indexOf('/* ===== PMM_THEMED_COMPARE_DRAG_LINE_V289'));
 files['scripts/openai.js']='export const promptManager={render(){}};';
 const html=`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
 body{margin:0;background:#222;color:#eee;font:14px sans-serif;--SmartThemeBodyColor:#eee;--SmartThemeBlurTintColor:#25252b;--SmartThemeBorderColor:#888}

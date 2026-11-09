@@ -4,7 +4,7 @@ import { createServer } from 'node:http';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 const { chromium } = await import(process.env.PMM_PLAYWRIGHT_MODULE ? pathToFileURL(process.env.PMM_PLAYWRIGHT_MODULE).href : 'playwright');
 const source = await readFile(new URL('../dist/workshop-v3.02.js', import.meta.url), 'utf8');
-const moduleSource = "import { requestSnapshotName } from './snapshot-name-dialog.js';\n" + source.slice(source.indexOf('/* ===== PMM_SWITCH_SNAPSHOTS_TEST52'), source.indexOf('/* ===== PMM_THEMED_COMPARE_DRAG_LINE_V289'));
+const moduleSource = source.slice(0, source.indexOf('let pmmEditingContext')) + "import { requestSnapshotName } from './snapshot-name-dialog.js';\n" + source.slice(source.indexOf('/* ===== PMM_SWITCH_SNAPSHOTS_TEST52'), source.indexOf('/* ===== PMM_THEMED_COMPARE_DRAG_LINE_V289'));
 const helper = await readFile(new URL('../dist/snapshot-name-dialog.js', import.meta.url), 'utf8');
 const html = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
 body{margin:0;font:14px system-ui;--SmartThemeBodyColor:#ddd;--SmartThemeBlurTintColor:#191919;--SmartThemeBorderColor:#444;--SmartThemeQuoteColor:#afa4a8;background:#121212;color:#ddd}

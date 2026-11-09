@@ -15,3 +15,5 @@ SillyTavern 预设、世界书、快照、收藏和正则管理扩展。
 ## 开发检查
 
 运行 `npm run check` 检查当前版本。`scripts/` 是开发测试与构建工具，插件运行时不会加载这些脚本。
+
+性能回归与浏览器夹具说明见 [DOM 扫描的性能回归](docs/performance-regressions.md)。

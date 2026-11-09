@@ -1,4 +1,26 @@
 function pmmRuntimeResource(target) { return globalThis.__PMM_RUNTIME_SCOPE__?.own(target) || target; }
+
+/* ===== PMM_MUTATION_FILTER: keep host chat/other extensions out of UI scans. ===== */
+function pmmMutationsAffect(records, selector, includePageAttributes = false) {
+  for (const record of records) {
+    // nodeType rather than instanceof: observers also watch the parent document.
+    const target = record.target?.nodeType === 1 ? record.target : record.target?.parentElement;
+    if (target?.closest?.(selector)) return true;
+    // Host theme classes/styles may be inherited by a panel outside its subtree.
+    if (includePageAttributes && record.type === 'attributes' && target &&
+        (target === target.ownerDocument?.documentElement || target === target.ownerDocument?.body) &&
+        target.ownerDocument.querySelector?.(selector)) return true;
+    if (record.type !== 'childList') continue;
+    // Discover newly mounted roots and wrappers, and also handle their removal.
+    for (const nodes of [record.addedNodes, record.removedNodes]) {
+      for (const node of nodes || []) {
+        if (node.nodeType === 1 && (node.matches?.(selector) || node.querySelector?.(selector))) return true;
+      }
+    }
+  }
+  return false;
+}
+/* ===== PMM_MUTATION_FILTER END ===== */
 let pmmEditingContext = null;
 const pmmCompareInsertedIds = new Map();
 function pmmQueueCompareGroups(name) {
@@ -4312,7 +4334,9 @@ export{xo as mountMainPanel,fo as toggleMainPanel,bo as unmountMainPanel};
       if (doc === parentDoc) scan(doc);
       else fixDiffDetail(doc);
       if (!doc.body) return;
-      const mo = new MutationObserver(requestScan);
+      const mo = new MutationObserver(records => {
+        if (pmmMutationsAffect(records, '#preset-manager-main-panel,#preset-manager-floating-panel,#extensionsMenu,#extensionsMenuButton,#pm-mobile-fab-standalone,#pmm-diff-detail-portal,[data-pmm-compare-modal],[data-pmm-diff-detail="1"],.pmm-content-diff-overlay')) requestScan();
+      });
       pmmRuntimeResource(mo).observe(doc.body, { childList: true, subtree: true });
       pmmRuntimeResource(globalThis).setInterval(requestScan, 1200);
     };
@@ -6198,7 +6222,9 @@ export{xo as mountMainPanel,fo as toggleMainPanel,bo as unmountMainPanel};
     pmmRuntimeResource(DOC.head).appendChild(style);
   }
 
-  const observer = new MutationObserver(queueScan);
+  const observer = new MutationObserver(records => {
+    if (pmmMutationsAffect(records, ROOT_SELECTOR)) queueScan();
+  });
   pmmRuntimeResource(observer).observe(DOC.body || DOC.documentElement, { childList: true, subtree: true });
   pmmRuntimeResource(DOC).addEventListener('click', event => {
     const button = event.target?.closest?.('button');
@@ -12317,7 +12343,9 @@ html.pmm-dnd-compat-active #preset-manager-main-panel{user-select:none!important
   }
 
   installStyle();
-  mainObserver = new MutationObserverCtor(scheduleSync);
+  mainObserver = new MutationObserverCtor(records => {
+    if (pmmMutationsAffect(records, '#preset-manager-main-panel', true)) scheduleSync();
+  });
   pmmRuntimeResource(mainObserver).observe(DOC.documentElement, { childList:true, subtree:true });
   pmmRuntimeResource(MEDIA)?.addEventListener?.('change', scheduleSync);
   pmmRuntimeResource(TOP).addEventListener?.('pmm-mobile-dnd-compat-change', onDragCompatChange);
@@ -13390,7 +13418,9 @@ html.pmm-dnd-compat-active #preset-manager-main-panel{user-select:none!important
   function install() {
     for (const currentDocument of documents()) installStyle(currentDocument);
     observers = documents().map(currentDocument => {
-      const currentObserver = new MutationObserverCtor(scheduleSync);
+      const currentObserver = new MutationObserverCtor(records => {
+        if (pmmMutationsAffect(records, '#preset-manager-floating-panel,#settings_preset_openai,select[data-preset-manager-for*="openai"]', true)) scheduleSync();
+      });
       pmmRuntimeResource(currentObserver).observe(currentDocument.documentElement, { childList:true, subtree:true, attributes:true, attributeFilter:['style', 'class'] });
       return currentObserver;
     });
@@ -17114,7 +17144,9 @@ ${PANEL_SELECTOR} .section-group.pmm-nested-section--hidden { display: none !imp
   }
 
   installStyle();
-  observer = new win.MutationObserver(schedule);
+  observer = new win.MutationObserver(records => {
+    if (pmmMutationsAffect(records, PANEL_SELECTOR, true)) schedule();
+  });
   pmmRuntimeResource(observer).observe(DOC.documentElement, {
     childList: true,
     subtree: true,
@@ -17359,7 +17391,9 @@ html.${ROOT_CLASS} ${PANEL_SELECTOR} .${COMPACT_CLASS} > .prompt-editor__expand-
   resizeObserver = typeof win.ResizeObserver === 'function'
     ? new win.ResizeObserver(schedule)
     : null;
-  mutationObserver = new win.MutationObserver(schedule);
+  mutationObserver = new win.MutationObserver(records => {
+    if (pmmMutationsAffect(records, PANEL_SELECTOR, true)) schedule();
+  });
   pmmRuntimeResource(mutationObserver).observe(DOC.documentElement, { childList: true, subtree: true, characterData: true });
   pmmRuntimeResource(TOP).addEventListener?.('resize', onResize);
   pmmRuntimeResource(TOP).addEventListener?.('orientationchange', onResize);
@@ -18056,7 +18090,7 @@ console.info('[预设工坊] V2.97.21 已加载：快照模式仅保留条目与
     if (observer || typeof TOP.MutationObserver !== 'function') return;
     try {
       observer = new TOP.MutationObserver(records => {
-        if (!records?.some?.(record => record.type === 'childList' || record.target?.matches?.('.pm-panel-container'))) return;
+        if (!pmmMutationsAffect(records, '#preset-manager-main-panel', true)) return;
         scanAndMount();
       });
       pmmRuntimeResource(observer).observe(DOC.body || DOC.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });

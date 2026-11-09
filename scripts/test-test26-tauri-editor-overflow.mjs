@@ -32,7 +32,7 @@ for (const marker of [
   'element.scrollWidth',
   'header.clientWidth + 1',
   'new win.ResizeObserver(schedule)',
-  'new win.MutationObserver(schedule)',
+  'if (pmmMutationsAffect(records, PANEL_SELECTOR, true)) schedule();',
 ]) {
   assert.ok(runtime.includes(marker), `test.28 缺少实现：${marker}`);
 }

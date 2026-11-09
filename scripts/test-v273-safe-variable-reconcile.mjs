@@ -7,7 +7,7 @@ const source = (await readFile(new URL('../dist/workshop-v3.02.js', import.meta.
 assert.ok(source.includes('function completePromptContentsInPanel(panel)'), '缺少完整预设数据读取');
 assert.ok(source.includes('component.props?.prompts'), '没有优先读取面板的完整 prompts 数据');
 assert.ok(source.includes("else return null;"), 'DOM 数据不完整时仍可能继续误清变量');
-assert.ok(source.includes('const observer = new MutationObserver(queueScan);'), '普通折叠或滚动仍会触发变量清理');
+assert.ok(source.includes('if (pmmMutationsAffect(records, ROOT_SELECTOR)) queueScan();'), '普通折叠或滚动仍会触发变量清理');
 assert.ok(source.includes("if (button && /撤销|删除/.test(label)) queueBasketReconcile();"), '撤销或删除后不会安全校准变量');
 assert.ok(!source.includes('收集本条已有变量'), '旧变量整条收集入口重新出现');
 

@@ -366,7 +366,9 @@ ${PANEL_SELECTOR} .section-group.pmm-nested-section--hidden { display: none !imp
   }
 
   installStyle();
-  observer = new win.MutationObserver(schedule);
+  observer = new win.MutationObserver(records => {
+    if (pmmMutationsAffect(records, PANEL_SELECTOR, true)) schedule();
+  });
   observer.observe(DOC.documentElement, {
     childList: true,
     subtree: true,

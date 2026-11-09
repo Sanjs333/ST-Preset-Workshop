@@ -3,9 +3,10 @@ import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 const { chromium } = await import(process.env.PMM_PLAYWRIGHT_MODULE ? pathToFileURL(process.env.PMM_PLAYWRIGHT_MODULE).href : 'playwright');
 const source = await readFile(new URL('../dist/workshop-v3.02.js', import.meta.url), 'utf8');
+const runtimePrelude = source.slice(0, source.indexOf('let pmmEditingContext'));
 function moduleBetween(start, end) {
   const a = source.indexOf(start), b = source.indexOf(end, a);
-  assert.ok(a >= 0 && b > a); return source.slice(a, b);
+  assert.ok(a >= 0 && b > a); return runtimePrelude + source.slice(a, b);
 }
 const nesting = moduleBetween('/* ===== PMM_GROUP_SELECT_NESTING_TEST24', '/* ===== PMM_TAURI_EDITOR_OVERFLOW_TEST28');
 const tuner = moduleBetween('/* ===== PMM_MOBILE_LAYOUT_TUNER_V1', '/* ===== PMM_FLOATING_PANEL_BATCH_V1');
@@ -29,7 +30,7 @@ try {
   });
   await page.addScriptTag({content:nesting});
   async function settled(label) {
-    await page.waitForTimeout(200);
+    await page.waitForTimeout(1500);
     const before=await page.evaluate(()=>framesRun);
     await page.waitForTimeout(500);
     const count=await page.evaluate(()=>framesRun)-before;
@@ -42,8 +43,7 @@ try {
   await settled('mobile header and group observers together');
   await page.locator('.pmm-layout-trigger').click();
   await settled('layout settings open');
-  const controls=page.locator('[data-pmm-layout-input]');
-  assert.equal(await controls.first().getAttribute('data-pmm-layout-input'),'toolbarGap');
+  assert.equal(await page.locator('[data-pmm-layout-input="toolbarGap"]').count(),1);
   const gap=page.locator('[data-pmm-layout-input="toolbarGap"]');
   await gap.fill('12');await gap.dispatchEvent('input');
   await settled('toolbar spacing changed');

@@ -22,7 +22,9 @@ const source = (await readFile(process.env.PMM_WORKSHOP_SOURCE || new URL('../di
   .replace('export{xo as mountMainPanel,fo as toggleMainPanel,bo as unmountMainPanel};', 'window.testOpen=fo;window.testClose=bo;window.testStores=()=>({main:Je(),merge:mn(),branch:je(),diff:Cn(),groups:ze()});');
 const browser = await playwright[engine].launch(engine === 'chromium' ? { channel: 'msedge', headless: true } : { headless: true });
 try {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true,
+    ...(process.env.PMM_TEST_MUTATIONS_IOS ? { userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1' } : {}),
+  });
   const page = await context.newPage();
   if (process.env.PMM_TEST_COMPARE) page.setDefaultTimeout(10000);
   for (const pass of [0]) {
@@ -50,8 +52,8 @@ try {
     await page.addStyleTag({ content: 'html { --SmartThemeBlurTintColor:rgba(24,32,48,.6); --SmartThemeBodyColor:rgb(232,237,244); } body { background:repeating-linear-gradient(45deg,#475569 0 12px,#8fa1b8 12px 24px); }' });
     await page.addScriptTag({ content: await asset('lodash.min.js') });
     await page.addScriptTag({ content: await asset('jquery.min.js') });
-    await page.evaluate(() => {
-      const prompts = Array.from({ length: 8 }, (_, i) => ({ id: `p${i}`, name: `Prompt ${i}`, enabled: true, content: 'Fixture content', role: 'system', position: { type: 'relative' } }));
+    await page.evaluate(promptCount => {
+      const prompts = Array.from({ length: promptCount }, (_, i) => ({ id: `p${i}`, name: `Prompt ${i}`, enabled: true, content: 'Fixture content', role: 'system', position: { type: 'relative' } }));
       prompts[0].name = '测试条目名称：这里是原本被隐藏按钮挡住的后半段';
       let variables = {};
       window.fixtureLoads = 0;
@@ -72,7 +74,7 @@ try {
       };
       Object.assign(window, TavernHelper);
       localStorage.setItem('preset-manager-theme-mode', 'auto');
-    });
+    }, process.env.PMM_TEST_MUTATIONS ? 400 : 8);
     if (process.env.PMM_THEME_CSS) await page.evaluate(css => {
       const style = document.createElement('style'); style.textContent = css; document.head.append(style);
     }, await readFile(process.env.PMM_THEME_CSS, 'utf8'));
@@ -96,10 +98,20 @@ try {
       window.log = { info() {}, warn() {}, error() {}, debug() {} };
       window.__PMM_RUNTIME_SCOPE__ = (await import('/runtime-resources.js')).createRuntimeScope(window);
     });
+    if (process.env.PMM_TEST_MUTATIONS) {
+      const { instrumentWorkshopMutations } = await import('./verify-workshop-mutations.mjs');
+      await instrumentWorkshopMutations(page, frame);
+    }
     await frame.addScriptTag({ type: 'module', url: 'http://startup.test/shared-favorites.js' });
     await frame.evaluate(() => { window.__PMM_LOAD_WORLDBOOK_STITCH__ = async () => { await import('http://startup.test/worldbook-stitch-test3.js'); return parent.__PMM_WORLDBOOK_STITCH_TEST3__; }; });
     await frame.addScriptTag({ type: 'module', content: source });
     await frame.waitForFunction(() => typeof testOpen === 'function' && parent.document.querySelector('#preset-manager-floating-panel'), null, { polling: 25 });
+    if (process.env.PMM_TEST_MUTATIONS) {
+      const { verifyWorkshopMutations } = await import('./verify-workshop-mutations.mjs');
+      await verifyWorkshopMutations(page, frame, engine);
+      assert.deepEqual(errors, []);
+      continue;
+    }
     // Unmount before the deferred initializer: no late load is allowed.
     await page.waitForTimeout(220);
     const loadsBeforeCancel = await page.evaluate(() => fixtureLoads);

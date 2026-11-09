@@ -4,8 +4,9 @@ import { createServer } from 'node:http';
 import { pathToFileURL } from 'node:url';
 const { chromium } = await import(process.env.PMM_PLAYWRIGHT_MODULE ? pathToFileURL(process.env.PMM_PLAYWRIGHT_MODULE).href : 'playwright');
 const source = await readFile(new URL('../dist/workshop-v3.02.js', import.meta.url), 'utf8');
+const runtimePrelude = source.slice(0, source.indexOf('let pmmEditingContext'));
 const start = source.indexOf('/* ===== PMM_FLOATING_PANEL_BATCH_V1');
-const floating = source.slice(start, source.indexOf('/* ===== PMM_NATIVE_PRESET_ENTRY_TEST80', start)) + '\n//# sourceURL=pmm-floating-under-test.js';
+const floating = runtimePrelude + source.slice(start, source.indexOf('/* ===== PMM_NATIVE_PRESET_ENTRY_TEST80', start)) + '\n//# sourceURL=pmm-floating-under-test.js';
 assert.ok(start > 0);
 function fn(name) {
   const start = source.indexOf(`  function ${name}(`);
@@ -13,7 +14,7 @@ function fn(name) {
   return source.slice(start, source.indexOf('\n  function ', start + 1));
 }
 // Run the real toolbar/control functions; unrelated branch and standalone FAB UI are fixture stubs.
-const controls = `(() => {
+const controls = runtimePrelude + `(() => {
   const parentDoc=document,docs=[document],FAB_RUNTIME_TOKEN=Symbol(),FAB_VISIBILITY_KEY='pmm_mobile_fab_visible_v1';
   const isMobile=()=>innerWidth<=768;
   const makeFab=()=>{},removeFab=()=>{},ensureBranchEntryVisibilityControls=()=>{},setRuntimeButtonVisual=()=>{};
@@ -49,7 +50,8 @@ const browser=await chromium.launch({channel:'msedge',headless:true});
 const url=`http://127.0.0.1:${server.address().port}`;
 async function setup({width=820,height=1180,ua='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15',touch=true}={}) {
   const page=await browser.newPage({viewport:{width,height},userAgent:ua,hasTouch:touch});
-  if(touch) await page.addInitScript(()=>Object.defineProperty(navigator,'maxTouchPoints',{get:()=>5}));
+  // Edge may expose the host touchscreen even with hasTouch:false. Pin the fixture.
+  await page.addInitScript(points=>Object.defineProperty(navigator,'maxTouchPoints',{get:()=>points}),touch?5:0);
   page.errors=[];page.on('pageerror',err=>page.errors.push(err.message));
   await page.goto(url);
   await install(page);
